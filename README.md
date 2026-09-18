@@ -7,6 +7,11 @@ Professional contact for **Zabbix monitoring, connectivity, VPN and industrial/I
 
 > This is an independent community project. It is not an official template from ABS Telemetria and is not affiliated with or endorsed by the manufacturer.
 
+## Languages
+
+- 🇺🇸 **English:** this file
+- 🇧🇷 [Português (Brasil)](README.pt-BR.md)
+
 ## Compatibility
 
 - **Zabbix:** 7.0
@@ -83,9 +88,16 @@ Keep the management interface restricted to trusted networks/VPNs.
 
 ## Documentation
 
+### English
 - [Installation](docs/installation.md)
 - [Monitored items](docs/monitored-items.md)
 - [Radio metrics](docs/radio-metrics.md)
+
+### Português
+- [Instalação](docs/pt-BR/installation.md)
+- [Itens monitorados](docs/pt-BR/monitored-items.md)
+- [Métricas de rádio](docs/pt-BR/radio-metrics.md)
+
 - [Changelog](CHANGELOG.md)
 
 ## Contributing
