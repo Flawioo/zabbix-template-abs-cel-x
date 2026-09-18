@@ -1,0 +1,2056 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+  - uuid: 62f9689c38984a58bfbe6fab6c6204e3
+    name: Templates/Network devices
+  templates:
+  - uuid: 9b3aef8469ea484a9f92fb9ba518e9d4
+    template: Template ABS CEL X by Flawioo
+    name: Template ABS CEL X by Flawioo
+    description: 'Monitoramento do gateway industrial ABS CEL X / ABS LX via HTTP/JSON do Configurador Web. Inclui disponibilidade, celular, Ethernet,
+      OpenVPN/IPsec, TCP, seriais, watchdog, inventário e diagnóstico de rádio UMTS via AT^SMONI. A extensão AT^SMONI foi validada em equipamento
+      com modem Cinterion EHS6 (3G/UMTS); outros modems/variantes 4G podem retornar formato diferente. Produto de referência do fabricante: https://abstelemetria.com/abs-cel-x-4g/
+      . Projeto independente desenvolvido e mantido por Flawioo. Contato profissional para serviços de monitoramento Zabbix, conectividade, VPN
+      e conectividade industrial/IoT: flawioo@gmail.com. Este é um projeto comunitário independente, sem vínculo ou endosso do fabricante ou de
+      empregadores do autor.
+
+
+      Radio preprocessing: UMTS-specific numeric metrics discard non-numeric/NaN samples instead of becoming unsupported when the current radio
+      technology does not provide the metric.'
+    groups:
+    - name: Templates/Network devices
+    items:
+    - uuid: 551546ce05a44196a01f494e85740305
+      name: ABS CEL X - Status JSON
+      type: HTTP_AGENT
+      key: abs.cel.status.raw
+      delay: 1m
+      history: 7d
+      value_type: TEXT
+      url: http://{HOST.CONN}/cgi-bin/conversor_server_config.pyc
+      request_method: POST
+      post_type: JSON
+      posts: '{"cmd":"get_conversor_status","parms":{}}'
+      headers:
+      - name: Content-Type
+        value: application/json
+      timeout: 10s
+      description: Coleta o JSON de status do ABS CEL X através do Configurador Web.
+      tags:
+      - tag: component
+        value: raw
+      - tag: scope
+        value: collection
+      triggers:
+      - uuid: b0ab18c88d29487c90277f36c15b1f3e
+        expression: nodata(/Template ABS CEL X by Flawioo/abs.cel.status.raw,5m)=1
+        name: ABS CEL X - No status data for 5 minutes
+        priority: HIGH
+        description: O Zabbix não recebeu o JSON de status do equipamento por 5 minutos.
+        tags:
+        - tag: component
+          value: raw
+    - uuid: a7721a1e6fc149858f5dd3f365b43317
+      name: ABS CEL X - API result code
+      type: DEPENDENT
+      key: abs.api.result_code
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.result_code
+      triggers:
+      - uuid: 62edbd8a5c7a46eda8163a7f0764a972
+        expression: last(/Template ABS CEL X by Flawioo/abs.api.result_code)<>200
+        name: ABS CEL X - API returned an error
+        priority: AVERAGE
+        tags:
+        - tag: component
+          value: api
+      tags:
+      - tag: component
+        value: api
+      - tag: scope
+        value: health
+    - uuid: 9391cc48eca8415da366b93e9dbbb3ef
+      name: ABS CEL X - Uptime
+      type: DEPENDENT
+      key: abs.uptime
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.uptime
+      value_type: FLOAT
+      units: s
+      triggers:
+      - uuid: 090af2ac0ac14a5c9fae20c89479e7f3
+        expression: change(/Template ABS CEL X by Flawioo/abs.uptime)<0
+        name: ABS CEL X - Device reboot detected
+        priority: WARNING
+        tags:
+        - tag: component
+          value: system
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: health
+    - uuid: 389b85c55be64012992660b84cc539d8
+      name: ABS CEL X - Serial number
+      type: DEPENDENT
+      key: abs.serial
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.credentials.serial_number
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: 72bc462555a742b7be88ce547ae44169
+      name: ABS CEL X - Firmware version
+      type: DEPENDENT
+      key: abs.firmware.version
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.credentials.version
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: 6200222a01864b6ca8ebfac951dc6763
+      name: ABS CEL X - Model
+      type: DEPENDENT
+      key: abs.model
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.credentials.release_name
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: 1ff73d561e144eb483cf438e826b93bc
+      name: ABS CEL X - Hostname
+      type: DEPENDENT
+      key: abs.hostname
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.hostname
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: 2c307871ed4a4675913d5f7cbcc2ecb4
+      name: ABS CEL X - Cellular signal
+      type: DEPENDENT
+      key: abs.cel.signal
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.SINAL
+      value_type: FLOAT
+      units: dBm
+      triggers:
+      - uuid: 506ae4df910949388a063b8ed103e33f
+        expression: avg(/Template ABS CEL X by Flawioo/abs.cel.signal,5m)<{$ABS.SIGNAL.MIN} and avg(/Template ABS CEL X by Flawioo/abs.cel.signal,5m)>={$ABS.SIGNAL.HIGH}
+        name: ABS CEL X - Cellular RSSI is weak
+        priority: WARNING
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+        description: RSSI médio de 5 minutos abaixo do limite de aviso configurado.
+      - uuid: 584aaa2b44a94c2c886125475c434a4f
+        expression: avg(/Template ABS CEL X by Flawioo/abs.cel.signal,5m)<{$ABS.SIGNAL.HIGH}
+        name: ABS CEL X - Cellular RSSI is very weak
+        priority: HIGH
+        description: RSSI médio de 5 minutos abaixo do limite de alta severidade configurado.
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+      valuemap:
+        name: ABS CEL X - RSSI Quality
+    - uuid: 829ead9bb3ae48edad1ece316f9d20c9
+      name: ABS CEL X - Cellular modem available
+      type: DEPENDENT
+      key: abs.cel.modem.available
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.cel_modem_available
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS boolean
+      triggers:
+      - uuid: fb0c8ccdbe4a403c8bf027d2caf27e83
+        expression: last(/Template ABS CEL X by Flawioo/abs.cel.modem.available)=0
+        name: ABS CEL X - Cellular modem unavailable
+        priority: HIGH
+        tags:
+        - tag: component
+          value: cellular
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+    - uuid: e501566353514de2a1827bc50e721b17
+      name: ABS CEL X - Cellular modem enabled
+      type: DEPENDENT
+      key: abs.cel.modem.enabled
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.enabled
+      valuemap:
+        name: ABS enabled
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+    - uuid: 29f59a5d6cc7488fb3362b28ff3ae34d
+      name: ABS CEL X - Cellular modem reason
+      type: DEPENDENT
+      key: abs.cel.modem.reason
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.reason
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+    - uuid: 05b9383e6fcb4ca79b0c14b425d2c8ff
+      name: ABS CEL X - Cellular APN
+      type: DEPENDENT
+      key: abs.cel.apn
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.apn
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 4770f805efe846648f24e4bccf202299
+      name: ABS CEL X - Cellular service
+      type: DEPENDENT
+      key: abs.cel.service
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.service
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 59ec14afe7ea4dae91681864db612957
+      name: ABS CEL X - Cellular protocol
+      type: DEPENDENT
+      key: abs.cel.proto
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.proto
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 4dcecc4225a54a4ba99b0347fd90c845
+      name: ABS CEL X - Cellular WAN state
+      type: DEPENDENT
+      key: abs.cel.wan.state
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.state
+      value_type: CHAR
+      triggers:
+      - uuid: 9da0ae503b024bbbbb5ee3e2cbbcdfb6
+        expression: last(/Template ABS CEL X by Flawioo/abs.cel.wan.state)<>"up"
+        name: ABS CEL X - Cellular WAN is down
+        priority: HIGH
+        tags:
+        - tag: component
+          value: cellular
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: status
+    - uuid: a2feadbd6d214e8184f550e501c9b8d2
+      name: ABS CEL X - Cellular WAN IP
+      type: DEPENDENT
+      key: abs.cel.wan.ip
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.ip_address
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: network
+    - uuid: bb495fe1b9d948f295ada5e587f02cdc
+      name: ABS CEL X - OpenVPN state
+      type: DEPENDENT
+      key: abs.openvpn.state
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.openvpn.state
+      value_type: CHAR
+      triggers:
+      - uuid: 46a513f8d6c24b4c9c80a244dfe54e04
+        expression: '{$ABS.OPENVPN.REQUIRED}=1 and last(/Template ABS CEL X by Flawioo/abs.openvpn.state)<>"up"'
+        name: ABS CEL X - OpenVPN is down
+        priority: HIGH
+        tags:
+        - tag: component
+          value: vpn
+        - tag: interface
+          value: openvpn
+      tags:
+      - tag: component
+        value: vpn
+      - tag: interface
+        value: openvpn
+      - tag: scope
+        value: health
+    - uuid: 79ee1118ddb847719ac5fe648eeeb5c3
+      name: ABS CEL X - OpenVPN IP
+      type: DEPENDENT
+      key: abs.openvpn.ip
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.openvpn.ip_address
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: vpn
+      - tag: interface
+        value: openvpn
+      - tag: scope
+        value: network
+    - uuid: 03509d817f274d77b261db001bc47d8b
+      name: ABS CEL X - IPsec state
+      type: DEPENDENT
+      key: abs.ipsec.state
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.ipsec.state
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: vpn
+      - tag: interface
+        value: ipsec
+      - tag: scope
+        value: health
+    - uuid: 162a90d7478c4c3abbbe53911ca2244b
+      name: ABS CEL X - Ethernet 0 physical link
+      type: DEPENDENT
+      key: abs.eth0.link
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.eth_cable.conected
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS link
+      triggers:
+      - uuid: a46f51c1b6364e66bb86d68ec3558641
+        expression: '{$ABS.ETH0.REQUIRED}=1 and last(/Template ABS CEL X by Flawioo/abs.eth0.link)=0'
+        name: ABS CEL X - Ethernet 0 physical link is down
+        priority: HIGH
+        tags:
+        - tag: component
+          value: ethernet
+        - tag: interface
+          value: eth0
+      tags:
+      - tag: component
+        value: ethernet
+      - tag: interface
+        value: eth0
+      - tag: scope
+        value: health
+    - uuid: 0fce20a906cc4e918bdbf86684a3ee52
+      name: ABS CEL X - Ethernet 1 physical link
+      type: DEPENDENT
+      key: abs.eth1.link
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.eth_cable1.conected
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS link
+      triggers:
+      - uuid: 2bcbf7c4d7be49f587a49081636b720e
+        expression: '{$ABS.ETH1.REQUIRED}=1 and last(/Template ABS CEL X by Flawioo/abs.eth1.link)=0'
+        name: ABS CEL X - Ethernet 1 physical link is down
+        priority: HIGH
+        tags:
+        - tag: component
+          value: ethernet
+        - tag: interface
+          value: eth1
+      tags:
+      - tag: component
+        value: ethernet
+      - tag: interface
+        value: eth1
+      - tag: scope
+        value: health
+    - uuid: 1510f7dc9d604132b65f374258df07d4
+      name: ABS CEL X - Ethernet WAN state
+      type: DEPENDENT
+      key: abs.waneth.state
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanEth.state
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: ethernet
+      - tag: interface
+        value: wanEth
+      - tag: scope
+        value: status
+    - uuid: 83c0c798827349979f7152dd8396f629
+      name: ABS CEL X - TCP client connected
+      type: DEPENDENT
+      key: abs.tcp.connected
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.connected
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS link
+      triggers:
+      - uuid: ec9d895631cb42d184def4b62eea3306
+        expression: '{$ABS.TCP.REQUIRED}=1 and last(/Template ABS CEL X by Flawioo/abs.tcp.connected)=0'
+        name: ABS CEL X - TCP client is disconnected
+        priority: HIGH
+        tags:
+        - tag: component
+          value: tcp
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: health
+    - uuid: be73ae72d095430b8f57cd542c924afe
+      name: ABS CEL X - TCP client connection count
+      type: DEPENDENT
+      key: abs.tcp.connection_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.connection_count
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: statistics
+    - uuid: 81137b93d08f475e807e0030c07e18ad
+      name: ABS CEL X - TCP client attempt count
+      type: DEPENDENT
+      key: abs.tcp.attempt_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.count_attempts
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: statistics
+    - uuid: 9800a7eb3cdb46599ab1c2a349c0991b
+      name: ABS CEL X - TCP client fail reason
+      type: DEPENDENT
+      key: abs.tcp.fail_reason
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.fail_reason
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: health
+    - uuid: 560210f643c24098b0243acf8230ba41
+      name: ABS CEL X - TCP client RX total
+      type: DEPENDENT
+      key: abs.tcp.rx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.rx_total
+      units: B
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: traffic
+    - uuid: cf9b56677b8846d7aa729550807b7638
+      name: ABS CEL X - TCP client TX total
+      type: DEPENDENT
+      key: abs.tcp.tx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.tx_total
+      units: B
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: traffic
+    - uuid: c33df641832540c59f7af38bd99428d9
+      name: ABS CEL X - Serial public connected
+      type: DEPENDENT
+      key: abs.serial_public.connected
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.connected
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS link
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: health
+    - uuid: e53e192b6e934c118bd47bbc95b8034b
+      name: ABS CEL X - Serial ABS connected
+      type: DEPENDENT
+      key: abs.serial_abs.connected
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.connected
+      - type: JAVASCRIPT
+        parameters:
+        - 'return value === ''true'' ? 1 : 0;'
+      valuemap:
+        name: ABS link
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: health
+    - uuid: 6587ee27225d43f7bee846568cfc77b8
+      name: ABS CEL X - Part number
+      type: DEPENDENT
+      key: abs.part_number
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.credentials.part_number
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: c9b415b53eeb4e0b92147507986c8781
+      name: ABS CEL X - Firmware release date
+      type: DEPENDENT
+      key: abs.firmware.release_date
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.credentials.release_date
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: system
+      - tag: scope
+        value: inventory
+    - uuid: d18f2e31a2e546d88cae91400e95db52
+      name: ABS CEL X - Internal WAN state
+      type: DEPENDENT
+      key: abs.wan.state
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wan.state
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: network
+      - tag: interface
+        value: wan
+      - tag: scope
+        value: status
+    - uuid: 108e4e5246664efcba307eecb7568596
+      name: ABS CEL X - Internal WAN IP
+      type: DEPENDENT
+      key: abs.wan.ip
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wan.ip_address
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: network
+      - tag: interface
+        value: wan
+      - tag: scope
+        value: network
+    - uuid: 1a45c4c2fd2f44af8e54c2f03063b607
+      name: ABS CEL X - Configuration IP
+      type: DEPENDENT
+      key: abs.wan_config.ip
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wan_config.ip_address
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: network
+      - tag: interface
+        value: config
+      - tag: scope
+        value: network
+    - uuid: e01ed81baf8c4780b384167c051b1a1c
+      name: ABS CEL X - Cellular default gateway
+      type: DEPENDENT
+      key: abs.cel.wan.gateway
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.default_router
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: network
+    - uuid: 450b7cd938a047f1a21d971fb4b712a8
+      name: ABS CEL X - Cellular DNS 1
+      type: DEPENDENT
+      key: abs.cel.wan.dns1
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.nameservers[0]
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: network
+    - uuid: 06112e7adc9d4637a010c3ce9ba16631
+      name: ABS CEL X - Cellular DNS 2
+      type: DEPENDENT
+      key: abs.cel.wan.dns2
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.nameservers[1]
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: network
+    - uuid: de56d6535ff44c5a8287aa6c6f5c9a8f
+      name: ABS CEL X - Cellular DNS 3
+      type: DEPENDENT
+      key: abs.cel.wan.dns3
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.network.wanCel.nameservers[2]
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: network
+    - uuid: 08d6e9868cbf4708a94dece9bd4ee0b3
+      name: ABS CEL X - Watchdog enabled
+      type: DEPENDENT
+      key: abs.watchdog.enabled
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.wd_active_connection.enabled
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: watchdog
+      - tag: scope
+        value: config
+    - uuid: b404d4f51cd74c01851f78fd1d5908fb
+      name: ABS CEL X - Watchdog interface
+      type: DEPENDENT
+      key: abs.watchdog.interface
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.wd_active_connection.interface
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: watchdog
+      - tag: scope
+        value: config
+    - uuid: 203ed68886544bebb0531e2250f65567
+      name: ABS CEL X - Watchdog destination
+      type: DEPENDENT
+      key: abs.watchdog.destination
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.wd_active_connection.ipdest
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: watchdog
+      - tag: scope
+        value: config
+    - uuid: 8cc93cfd82ef431c9b620539d474a2c9
+      name: ABS CEL X - Watchdog interval
+      type: DEPENDENT
+      key: abs.watchdog.interval
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.wd_active_connection.interval
+      value_type: CHAR
+      units: s
+      tags:
+      - tag: component
+        value: watchdog
+      - tag: scope
+        value: config
+    - uuid: 439237aa207143f4859b369d34ae07c2
+      name: ABS CEL X - Watchdog max wait
+      type: DEPENDENT
+      key: abs.watchdog.max_wait
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.wd_active_connection.max_wait
+      value_type: CHAR
+      units: s
+      tags:
+      - tag: component
+        value: watchdog
+      - tag: scope
+        value: config
+    - uuid: c727eb5203894563a61646628f8e05e6
+      name: ABS CEL X - Cellular interface
+      type: DEPENDENT
+      key: abs.cel.interface
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.ifname
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 17cd3eee39964feaa00b0ec141b7c696
+      name: ABS CEL X - Cellular modem device
+      type: DEPENDENT
+      key: abs.cel.device
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.device
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: ed0b1ccad1274b959f3b50accf8b70ef
+      name: ABS CEL X - Cellular operator code
+      type: DEPENDENT
+      key: abs.cel.operator_code
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.IMSI_operator_code
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 326c2d99b92f426e9cb191e9f66a0ecb
+      name: ABS CEL X - Cellular radio band
+      type: DEPENDENT
+      key: abs.cel.radio_band
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.abs_radio_band
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 4e8c5e513c814949a5f6f9ec1e851a28
+      name: ABS CEL X - Cellular keepalive
+      type: DEPENDENT
+      key: abs.cel.keepalive
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.keepalive
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: f871b7d5a01941f381e23433ac9d4787
+      name: ABS CEL X - Cellular max wait
+      type: DEPENDENT
+      key: abs.cel.maxwait
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.cel_modem.maxwait
+      value_type: CHAR
+      units: s
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: config
+    - uuid: 6b537a0aa660480c88c54783c84861bf
+      name: ABS CEL X - TCP client destination
+      type: DEPENDENT
+      key: abs.tcp.destination
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.hostname_and_port[0]
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: config
+    - uuid: 9b8cd59115f0484283be663077859afc
+      name: ABS CEL X - TCP client RX session      type: DEPENDENT
+      key: abs.tcp.rx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.rx_session
+      units: B
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: traffic
+    - uuid: 8f62eb2db1a3497994118908029e7441
+      name: ABS CEL X - TCP client TX session
+      type: DEPENDENT
+      key: abs.tcp.tx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.tx_session
+      units: B
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: traffic
+    - uuid: 904a1d8f53934c16a53f9dc541753505
+      name: ABS CEL X - TCP client connection start
+      type: DEPENDENT
+      key: abs.tcp.connection_start
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.connection_start
+      value_type: FLOAT
+      units: s
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: statistics
+    - uuid: 3d808404685749088b36a452666ee7e4
+      name: ABS CEL X - TCP client disconnection start
+      type: DEPENDENT
+      key: abs.tcp.disconnection_start
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.tcp_client.disconnection_start
+      value_type: FLOAT
+      units: s
+      tags:
+      - tag: component
+        value: tcp
+      - tag: scope
+        value: statistics
+    - uuid: d0be3a9813a949e692f01a1067c602b2
+      name: ABS CEL X - Serial public port
+      type: DEPENDENT
+      key: abs.serial_public.port
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.port
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: config
+    - uuid: 0c3158ae23d741169fce96cef12e4931
+      name: ABS CEL X - Serial public baudrate
+      type: DEPENDENT
+      key: abs.serial_public.baudrate
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.baudrate
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: config
+    - uuid: 54b957f0bc42458ba59780863cabef53
+      name: ABS CEL X - Serial public connection count
+      type: DEPENDENT
+      key: abs.serial_public.connection_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.connection_count
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: statistics
+    - uuid: 7002a772a1a94d10ad0e8ce554003d11
+      name: ABS CEL X - Serial public attempt count
+      type: DEPENDENT
+      key: abs.serial_public.attempt_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.count_attempts
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: statistics
+    - uuid: d81c8a4aa6f740d9898d2a46b0f6e05f
+      name: ABS CEL X - Serial public fail reason
+      type: DEPENDENT
+      key: abs.serial_public.fail_reason
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.fail_reason
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: health
+    - uuid: 6ed80859502b42a4a3a37c7186f15366
+      name: ABS CEL X - Serial public RX total
+      type: DEPENDENT
+      key: abs.serial_public.rx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.rx_total
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: traffic
+    - uuid: f6ba331251de4e0c962afcdf008bd9d8
+      name: ABS CEL X - Serial public TX total
+      type: DEPENDENT
+      key: abs.serial_public.tx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.tx_total
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: traffic
+    - uuid: d321c6baaeaf4f0aa44c97b22e7dde91
+      name: ABS CEL X - Serial public RX session
+      type: DEPENDENT
+      key: abs.serial_public.rx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.rx_session
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: traffic
+    - uuid: 235c849d921843e2a9607eccbaf17c98
+      name: ABS CEL X - Serial public TX session
+      type: DEPENDENT
+      key: abs.serial_public.tx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_publica.tx_session
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: public
+      - tag: scope
+        value: traffic
+    - uuid: 7b9f5353e8744dff8c02d0cb926e3cc8
+      name: ABS CEL X - Serial ABS port
+      type: DEPENDENT
+      key: abs.serial_abs.port
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.port
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: config
+    - uuid: 6c508de799094d578e8ef792161fe770
+      name: ABS CEL X - Serial ABS baudrate
+      type: DEPENDENT
+      key: abs.serial_abs.baudrate
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.baudrate
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: config
+    - uuid: 33191d85510b4d35a1a5ef4112a53265
+      name: ABS CEL X - Serial ABS connection count
+      type: DEPENDENT
+      key: abs.serial_abs.connection_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.connection_count
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: statistics
+    - uuid: 6646114cded843a3ad6cffa3dbb9b284
+      name: ABS CEL X - Serial ABS attempt count
+      type: DEPENDENT
+      key: abs.serial_abs.attempt_count
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.count_attempts
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: statistics
+    - uuid: 0e26c9d9ee2e4b6ab2e5d6bb7391e71a
+      name: ABS CEL X - Serial ABS fail reason
+      type: DEPENDENT
+      key: abs.serial_abs.fail_reason
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.fail_reason
+      value_type: CHAR
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: health
+    - uuid: 07f4a859332845caafd24abfabdf95d0
+      name: ABS CEL X - Serial ABS RX total
+      type: DEPENDENT
+      key: abs.serial_abs.rx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.rx_total
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: traffic
+    - uuid: 9624827e117e400cb3cc719571d7e5bb
+      name: ABS CEL X - Serial ABS TX total
+      type: DEPENDENT
+      key: abs.serial_abs.tx_total
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.tx_total
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: traffic
+    - uuid: 4d7daeadf8cb4ae7ad519049e7e0b883
+      name: ABS CEL X - Serial ABS RX session
+      type: DEPENDENT
+      key: abs.serial_abs.rx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.rx_session
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: traffic
+    - uuid: 993da6374a974e97a005fd860129424e
+      name: ABS CEL X - Serial ABS TX session
+      type: DEPENDENT
+      key: abs.serial_abs.tx_session
+      master_item:
+        key: abs.cel.status.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.conversor.serial_abs.tx_session
+      units: B
+      tags:
+      - tag: component
+        value: serial
+      - tag: interface
+        value: abs
+      - tag: scope
+        value: traffic
+    - uuid: eeb3e0df9e834f10981c96cbd4b85553
+      name: ABS CEL X - Radio SMONI JSON
+      type: HTTP_AGENT
+      key: abs.radio.smoni.raw
+      delay: 5m
+      history: 7d
+      value_type: TEXT
+      url: http://{HOST.CONN}/cgi-bin/conversor_server_config.pyc
+      request_method: POST
+      post_type: JSON
+      posts: '{"cmd":"cel_modem","parms":{"command":"at_command","data":"AT^SMONI"}}'
+      headers:
+      - name: Content-Type
+        value: application/json
+      timeout: 10s
+      description: Executa AT^SMONI no modem celular. Validado com Cinterion EHS6 em UMTS/3G. Coleta a cada 5 minutos.
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: collection
+      - tag: subsystem
+        value: radio
+      triggers:
+      - uuid: d8c7482f78df40c8adc5df8165abbc70
+        expression: nodata(/Template ABS CEL X by Flawioo/abs.radio.smoni.raw,15m)=1
+        name: ABS CEL X - No AT^SMONI radio data for 15 minutes
+        priority: WARNING
+        description: Não houve retorno da coleta de diagnóstico de rádio AT^SMONI por 15 minutos.
+        tags:
+        - tag: component
+          value: cellular
+    - uuid: 932086f4e61c430e879c2b4aa2792452
+      name: ABS CEL X - Radio SMONI line
+      type: DEPENDENT
+      key: abs.radio.smoni.line
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      value_type: CHAR
+      description: Linha ^SMONI retornada pelo modem.
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: diagnostic
+      - tag: subsystem
+        value: radio
+    - uuid: 4845b9b388974320895cb1fb270fd161
+      name: ABS CEL X - Radio technology (SMONI)
+      type: DEPENDENT
+      key: abs.radio.act
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[0].trim();'
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: status
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: 0ed17fd0ad2047ceb3d05ccdb3928e88
+      name: ABS CEL X - UMTS UARFCN
+      type: DEPENDENT
+      key: abs.radio.uarfcn
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[1]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: radio
+      - tag: subsystem
+        value: radio
+      value_type: FLOAT
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: 47d78fe685e84394bf8c2a27fd725367
+      name: ABS CEL X - UMTS PSC
+      type: DEPENDENT
+      key: abs.radio.psc
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[2]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: radio
+      - tag: subsystem
+        value: radio
+      value_type: FLOAT
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: acfefba951c246b681cc708d5f60c07e
+      name: ABS CEL X - UMTS EC/N0
+      type: DEPENDENT
+      key: abs.radio.ecno
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[3]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+      - tag: subsystem
+        value: radio
+      - tag: technology
+        value: umts
+      value_type: FLOAT
+      units: dB
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+      triggers:
+      - uuid: d99373a29ac8465d95137e3698dfc166
+        expression: avg(/Template ABS CEL X by Flawioo/abs.radio.ecno,5m)<{$ABS.ECNO.WARN} and avg(/Template ABS CEL X by Flawioo/abs.radio.ecno,5m)>={$ABS.ECNO.HIGH}
+        name: ABS CEL X - UMTS EC/N0 quality is degraded
+        priority: WARNING
+        description: EC/N0 abaixo do limite de aviso configurado.
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+        - tag: metric
+          value: ecno
+      - uuid: f8f20c60467f4a6fb3d764a494f30d35
+        expression: avg(/Template ABS CEL X by Flawioo/abs.radio.ecno,5m)<{$ABS.ECNO.HIGH}
+        name: ABS CEL X - UMTS EC/N0 quality is poor
+        priority: HIGH
+        description: EC/N0 abaixo do limite alto configurado.
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+        - tag: metric
+          value: ecno
+      valuemap:
+        name: ABS CEL X - UMTS ECN0 Quality
+    - uuid: a78438c95984473b97139c7ca0ff4a7c
+      name: ABS CEL X - UMTS RSCP
+      type: DEPENDENT
+      key: abs.radio.rscp
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[4]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+      - tag: subsystem
+        value: radio
+      - tag: technology
+        value: umts
+      value_type: FLOAT
+      units: dBm
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+      triggers:
+      - uuid: 3abfd2ff26c24533be56b77752c582b8
+        expression: avg(/Template ABS CEL X by Flawioo/abs.radio.rscp,5m)<{$ABS.RSCP.WARN} and avg(/Template ABS CEL X by Flawioo/abs.radio.rscp,5m)>={$ABS.RSCP.HIGH}
+        name: ABS CEL X - UMTS RSCP is weak
+        priority: WARNING
+        description: RSCP abaixo do limite de aviso configurado. Os limites são macros e podem ser ajustados por instalação.
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+        - tag: metric
+          value: rscp
+      - uuid: 45152fcdeb844a79b43c13e99f073ad1
+        expression: avg(/Template ABS CEL X by Flawioo/abs.radio.rscp,5m)<{$ABS.RSCP.HIGH}
+        name: ABS CEL X - UMTS RSCP is very weak
+        priority: HIGH
+        description: RSCP abaixo do limite alto configurado.
+        tags:
+        - tag: component
+          value: cellular
+        - tag: subsystem
+          value: radio
+        - tag: scope
+          value: health
+        - tag: metric
+          value: rscp
+      valuemap:
+        name: ABS CEL X - UMTS RSCP Quality
+    - uuid: d0de42075f02464baf0fb62b17add83f
+      name: ABS CEL X - Cellular MCC
+      type: DEPENDENT
+      key: abs.radio.mcc
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[5].trim();'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: inventory
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: fa029db9aa74495cb75fa30245b1c5ce
+      name: ABS CEL X - Cellular MNC
+      type: DEPENDENT
+      key: abs.radio.mnc
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[6].trim();'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: inventory
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: 989dd7c4b48e4c7fa39fc4ded09e9e0b
+      name: ABS CEL X - UMTS LAC
+      type: DEPENDENT
+      key: abs.radio.lac
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[7].trim();'
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: radio
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: 89b67b0ed05744f0b2ab139820d12f8f
+      name: ABS CEL X - UMTS Cell ID
+      type: DEPENDENT
+      key: abs.radio.cellid
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[8].trim();'
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: radio
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: 8be6ae20013d4a0fb43a5e9c818dac14
+      name: ABS CEL X - UMTS SQual
+      type: DEPENDENT
+      key: abs.radio.squal
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[9]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+      - tag: subsystem
+        value: radio
+      - tag: technology
+        value: umts
+      value_type: FLOAT
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: a91806188b2546b582fd20ba82f95b35
+      name: ABS CEL X - UMTS SRxLev
+      type: DEPENDENT
+      key: abs.radio.srxlev
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return parseFloat(p[10]);'
+      - type: JAVASCRIPT
+        parameters:
+        - "var v = String(value).trim();\nif (v === '' || v === 'NaN' || isNaN(Number(v))) {\n    throw 'Metric not available for current radio\
+          \ technology';\n}\nreturn Number(v);"
+        error_handler: DISCARD_VALUE
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: health
+      - tag: subsystem
+        value: radio
+      - tag: technology
+        value: umts
+      value_type: FLOAT
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    - uuid: ee820385890f4074a42d5d3f2ce1f1a8
+      name: ABS CEL X - Radio connection state (SMONI)
+      type: DEPENDENT
+      key: abs.radio.state
+      master_item:
+        key: abs.radio.smoni.raw
+      preprocessing:
+      - type: JSONPATH
+        parameters:
+        - $.data.result[0][1]
+      - type: JAVASCRIPT
+        parameters:
+        - 'var s = value.trim();
+
+          var m = s.match(/^\^SMONI:\s*(.*)$/);
+
+          if (!m) throw ''AT^SMONI line not found'';
+
+          var p = m[1].split('','');
+
+          if (p.length < 12) throw ''Unexpected AT^SMONI format'';
+
+          if (p[0].trim() !== ''3G'') throw ''AT^SMONI is not in tested 3G format'';
+
+          return p[11].trim();'
+      tags:
+      - tag: component
+        value: cellular
+      - tag: scope
+        value: status
+      - tag: subsystem
+        value: radio
+      value_type: CHAR
+      description: Extraído do comando AT^SMONI. Parser validado para o formato 3G/UMTS do Cinterion EHS6.
+    macros:
+    - macro: '{$ABS.SIGNAL.MIN}'
+      value: '-100'
+      description: RSSI warning threshold in dBm. Default aligned with the value-map boundary between Razoável and Ruim.
+    - macro: '{$ABS.OPENVPN.REQUIRED}'
+      value: '1'
+      description: 1 = gerar alerta se OpenVPN não estiver up; 0 = não exigir.
+    - macro: '{$ABS.TCP.REQUIRED}'
+      value: '1'
+      description: 1 = gerar alerta se o túnel TCP principal estiver desconectado.
+    - macro: '{$ABS.ETH0.REQUIRED}'
+      value: '0'
+      description: 1 = Ethernet 0 deve possuir link físico.
+    - macro: '{$ABS.ETH1.REQUIRED}'
+      value: '0'
+      description: 1 = Ethernet 1 deve possuir link físico.
+    - macro: '{$ABS.RSCP.WARN}'
+      value: '-85'
+      description: UMTS RSCP warning threshold in dBm.
+    - macro: '{$ABS.RSCP.HIGH}'
+      value: '-95'
+      description: UMTS RSCP high-severity threshold in dBm.
+    - macro: '{$ABS.ECNO.WARN}'
+      value: '-10'
+      description: UMTS EC/N0 warning threshold in dB.
+    - macro: '{$ABS.ECNO.HIGH}'
+      value: '-15'
+      description: UMTS EC/N0 high-severity threshold in dB.
+    - macro: '{$ABS.SIGNAL.HIGH}'
+      value: '-110'
+      description: RSSI high-severity threshold in dBm.
+    valuemaps:
+    - uuid: b5b3ad40652746c69521753b6b987bfc
+      name: ABS link
+      mappings:
+      - value: '0'
+        newvalue: Down / Disconnected
+      - value: '1'
+        newvalue: Up / Connected
+    - uuid: d9e0b161c9a048649d8a402f6aca40ca
+      name: ABS boolean
+      mappings:
+      - value: '0'
+        newvalue: 'No'
+      - value: '1'
+        newvalue: 'Yes'    - uuid: c040dffca04c4a819b0f6731a174ec07
+      name: ABS enabled
+      mappings:
+      - value: '0'
+        newvalue: Disabled
+      - value: '1'
+        newvalue: Enabled
+    - uuid: 7b7ccc8c501f4cd9997afd011c98fd50
+      name: ABS CEL X - RSSI Quality
+      mappings:
+      - type: GREATER_OR_EQUAL
+        value: '-70'
+        newvalue: Excelente
+      - type: GREATER_OR_EQUAL
+        value: '-85'
+        newvalue: Bom
+      - type: GREATER_OR_EQUAL
+        value: '-100'
+        newvalue: Razoável
+      - type: GREATER_OR_EQUAL
+        value: '-110'
+        newvalue: Ruim
+      - type: DEFAULT
+        newvalue: Muito ruim
+    - uuid: 2e8ac539515a495097b8c42be5b6ebd8
+      name: ABS CEL X - UMTS RSCP Quality
+      mappings:
+      - type: GREATER_OR_EQUAL
+        value: '-60'
+        newvalue: Excelente
+      - type: GREATER_OR_EQUAL
+        value: '-75'
+        newvalue: Bom
+      - type: GREATER_OR_EQUAL
+        value: '-85'
+        newvalue: Razoável
+      - type: GREATER_OR_EQUAL
+        value: '-95'
+        newvalue: Ruim
+      - type: DEFAULT
+        newvalue: Muito ruim
+    - uuid: 1bf9c47ca33740d88e6a322472c80550
+      name: ABS CEL X - UMTS ECN0 Quality
+      mappings:
+      - type: GREATER_OR_EQUAL
+        value: '-6'
+        newvalue: Excelente
+      - type: GREATER_OR_EQUAL
+        value: '-10'
+        newvalue: Bom
+      - type: GREATER_OR_EQUAL
+        value: '-15'
+        newvalue: Razoável
+      - type: GREATER_OR_EQUAL
+        value: '-20'
+        newvalue: Ruim
+      - type: DEFAULT
+        newvalue: Muito ruim
